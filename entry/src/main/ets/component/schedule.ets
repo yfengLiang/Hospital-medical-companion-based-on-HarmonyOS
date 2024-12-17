@@ -1,4 +1,4 @@
-@Entry
+
 @Component
 export  default  struct schedule{
   @Prop typeIndex:number=4
