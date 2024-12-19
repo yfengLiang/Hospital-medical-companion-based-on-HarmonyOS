@@ -1,5 +1,6 @@
 import schedule from  '../component/schedule'
-import {getCompanion,return_companion_type} from '../api/api'
+import {getCompanion,return_companion_type,addOrder} from '../api/api'
+import {CustomDialogExample,CustomDialogData} from  '../component/dialogs'
 interface obj_list{
   hospital_name:string,
   time:string
@@ -22,11 +23,8 @@ interface form_list_type{
 @Component
 struct createOrder {
   @State orderData:return_companion_type|undefined=undefined
-  TextDialogController: CustomDialogController | null = new CustomDialogController({
-    builder: CustomDialogExample({
-      confirm: ()=> { }
-    }),
-  })
+  @State rangeList:Array<Array<string|number>>=[]
+  @State text_dialog_type:string="hospital_name"
   @State form_list:form_list_type={
     hospital_name:"请选择医院",
     hospital_id:undefined,
@@ -45,14 +43,87 @@ struct createOrder {
     receiveAddress:"接送地址",
     tel:"联系电话",
   }
+  TextDialogController: CustomDialogController | null = new CustomDialogController({
+    builder: CustomDialogExample({
+      confirm: (data:Array<string|number>)=> { this.textConfirmData(data) },
+      type_title:this.text_dialog_type,
+      rangeList:this.rangeList
+    }),
+    offset:{dx:0,dy:210}
+  })
+  DataDialogController: CustomDialogController | null = new CustomDialogController({
+    builder: CustomDialogData({
+      confirm: (time:Date)=> {  this.dateConfirmData(time)},
+    }),
+    offset:{dx:0,dy:210}
+  })
+  @State ruleTip:boolean=false
+  textConfirmData(data:Array<string|number>){
+    if(this.text_dialog_type==="hospital_name"){
+      this.form_list.hospital_name=data[0] as string
+      this.form_list.hospital_id=data[1] as number
+      this.TextDialogController?.close()
+    }else{
+        this.form_list.companion_name=data[0] as string
+        this.form_list.companion_id=data[1] as number
+        this.TextDialogController?.close()
+    }
+
+  }
+  formatDate(time:Date){
+    const year=time.getFullYear().toString()
+    //月份返回的是从0开始的 所以要+1
+    const month=(time.getMonth()+1).toString().padStart(2,"0")
+    const date=time.getDate().toString()
+    return `${year}-${month}-${date}`
+  }
+  dateConfirmData(time:Date){
+    this.form_list.time=this.formatDate(time)
+    this.form_list.starttime=time.getTime()
+    this.DataDialogController?.close()
+  }
+submit(){
+    let itemArr=["hospital_id","companion_id","starttime","demand","hospital_name","receiveAddress","tel"]
+for(const element of itemArr){
+  if(!Reflect.get(this.form_list,element)){
+    this.ruleTip=true
+    return
+  }
+}
+  addOrder({
+    hospital_name:this.form_list.hospital_name,
+    starttime:this.form_list.starttime as number,
+    receiveAddress:this.form_list.receiveAddress,
+    tel:this.form_list.tel,
+    demand:this.form_list.demand,
+    hospital_id:this.form_list.hospital_id as number,
+    companion_id:this.form_list.companion_id as number,
+  })
+}
 openDialog(name:string){
-  console.log('777',name)
+  if(name==="hospital_name"){
+    this.text_dialog_type="hospital_name"
+    this.rangeList=this.orderData?.hospitals.map((item)=>{
+      return [item.name,item.id]
+    })||[]
+    console.log('666',this.rangeList)
+    this.TextDialogController?.open()
+  }else if(name==="companion_name") {
+    this.text_dialog_type = "companion_name"
+    this.rangeList = this.orderData?.companion.map((item) => {
+      return [item.name, item.id]
+    }) || []
+    this.TextDialogController?.open()
+  }else if(name==="time"){
+    this.DataDialogController?.open()
+  }
 }
   onPageShow(): void {
     getCompanion().then(data=>{
       this.orderData=data
     })
   }
+
   build() {
     Column(){
       schedule({typeIndex:0})
@@ -90,41 +161,12 @@ openDialog(name:string){
         .onChange(value=>{
           this.form_list.demand=value
         })
+      if(this.ruleTip){
+        Text('请确认表单数据都已填写完毕！').fontColor(Color.Red).margin(5).fontSize(13)
+      }
       Button("提交订单",{type:ButtonType.Normal}).borderRadius(5).width("100%").margin({top:10})
         .onClick(()=>{})
     }.backgroundColor("#f0f0f0").height("100%").alignItems(HorizontalAlign.Start)
   }
 }
 
-@CustomDialog
-struct CustomDialogExample {
-  controller?: CustomDialogController
-  confirm: () => void = () => {
-  }
-  select:number=0
-  range:string[]=['123','456']
-  type_title:string="hospital_name"
-  getTitle(){
-    return this.type_title==="hospital_name"?'请选择医院':'请选择陪诊师'
-  }
-  build() {
-    Column() {
-      Text(this.getTitle()).fontSize(15).fontWeight(FontWeight.Bold).margin(10)
-        .width("100%").border({width:{bottom:1}}).textAlign(TextAlign.Center)
-        .padding({bottom:5}).borderColor('#999')
-      Flex({justifyContent:FlexAlign.SpaceBetween}){
-        Button("确认选择",{type:ButtonType.Normal}).borderRadius(5).backgroundColor(Color.Blue)
-          .onClick(()=>{
-            this.confirm()
-          })
-        Button("取消",{type:ButtonType.Normal}).borderRadius(5).backgroundColor(Color.Red)
-          .onClick(()=>{
-            this.controller?.close()
-          })
-      }.padding(10)
-      TextPicker({ range:this.range,selected:this.select })
-        .onChange((value: string | string[], index: number | number[]) => {
-        }).canLoop(false).width("70%")
-    }
-  }
-}

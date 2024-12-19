@@ -27,3 +27,23 @@ export function getCompanion(){
     method:"get"
   })
 }
+
+export  interface  createOrder_type{
+  hospital_name:string,
+  starttime:number
+  receiveAddress:string
+  tel:string
+  demand:string
+  hospital_id:number
+  companion_id:number
+}
+export interface return_createOrder_type {
+  wx_code: string
+}
+export  function addOrder(data:createOrder_type){
+  return request<return_createOrder_type>({
+    url:"/createOrder",
+    method:"post",
+    data
+  })
+}
